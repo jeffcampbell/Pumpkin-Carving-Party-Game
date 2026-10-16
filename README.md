@@ -22,7 +22,9 @@ The app calls itself **Pumpkin Patch** in its header.
 - **Save and share without accounts:** each pumpkin gets a short link with a
   preview image. Only the browser that made it can edit it, and anyone else gets
   a remix.
-- **Party game:** room codes, configurable carving time (default 2 minutes) and
+- **Party game:** room codes, easy-to-carve prompts ("A lazy cat") from a category
+  the host picks (animals, jobs, moods, monsters, food, things, random, or the
+  host's own custom list), configurable carving time (default 2 minutes) and
   votes per player (default 3), anonymous voting, results, and rematches.
 
 ![The six scenes](docs/images/scenes.jpg)
@@ -67,8 +69,8 @@ server/
   validate.js      payload checks shared by the API and the game
   game/rooms.js    room state machine (lobby → carving → voting → results)
   game/socket.js   WebSocket transport at /ws
-  game/prompts.js  carving prompts
-shared/scenes.js   scene list used by client and server
+  game/prompts.js  prompt word lists and picking
+shared/            scene and prompt-category lists used by client and server
 src/
   pumpkin/         geometry, shaders, carving mask, tools, falling pieces, scenes
   ui/workbench.js  carving UI shared by solo mode and the game

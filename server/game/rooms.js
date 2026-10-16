@@ -8,6 +8,7 @@
 
 import crypto from 'node:crypto';
 import { pickPrompt } from './prompts.js';
+import { DEFAULT_CATEGORY, isCategory, parseCustomPrompts } from '../../shared/prompt-categories.js';
 import { pumpkinPayload, ValidationError } from '../validate.js';
 
 export const LIMITS = {
@@ -31,6 +32,9 @@ export function normalizeConfig(input = {}, base = {}) {
     const n = Math.round(Number(raw));
     config[key] = Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
   }
+  const category = input.category ?? base.category;
+  config.category = isCategory(category) ? category : DEFAULT_CATEGORY;
+  config.customPrompts = parseCustomPrompts(input.customPrompts ?? base.customPrompts);
   return config;
 }
 
@@ -156,6 +160,9 @@ export class Room {
     if (this.connectedPlayers().length < MIN_PLAYERS_TO_START) {
       throw new GameError(`You need at least ${MIN_PLAYERS_TO_START} players to start.`);
     }
+    if (this.config.category === 'custom' && this.config.customPrompts.length === 0) {
+      throw new GameError('Add at least one custom prompt first.');
+    }
     // Anyone who left mid-game doesn't get carried into the next round.
     for (const [id, p] of this.players) if (!p.connected) this.players.delete(id);
     for (const p of this.players.values()) {
@@ -166,7 +173,7 @@ export class Room {
     this.round += 1;
     this.entries = [];
     this.results = null;
-    this.prompt = pickPrompt(this.usedPrompts);
+    this.prompt = pickPrompt(this.config, this.usedPrompts);
     this.setPhase('carving', this.config.roundSeconds * 1000, () => this.endCarving());
   }
 
@@ -301,7 +308,8 @@ export class Room {
       phase: this.phase,
       round: this.round,
       prompt: this.phase === 'lobby' ? null : this.prompt,
-      config: this.config,
+      // Only the host sees the custom list, so nobody can peek at upcoming prompts.
+      config: { ...this.config, customPrompts: forPlayer.id === this.hostId ? this.config.customPrompts : [], customCount: this.config.customPrompts.length },
       hostId: this.hostId,
       you: forPlayer.id,
       remainingMs: this.deadline ? Math.max(0, this.deadline - this.now()) : null,

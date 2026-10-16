@@ -27,10 +27,23 @@ function setup(config = {}, names = ['Ann', 'Bo', 'Cy']) {
 afterEach(() => mock.timers.reset());
 
 test('config defaults to 2 minute rounds, 3 votes, 8 players and clamps bad input', () => {
-  assert.deepEqual(normalizeConfig(), { maxPlayers: 8, roundSeconds: 120, votesPerPlayer: 3, voteSeconds: 60 });
-  assert.deepEqual(normalizeConfig({ maxPlayers: 50, roundSeconds: 5, votesPerPlayer: 'x' }), {
-    maxPlayers: 8, roundSeconds: 30, votesPerPlayer: 3, voteSeconds: 60,
+  const prompts = { category: 'random', customPrompts: [] };
+  assert.deepEqual(normalizeConfig(), { maxPlayers: 8, roundSeconds: 120, votesPerPlayer: 3, voteSeconds: 60, ...prompts });
+  assert.deepEqual(normalizeConfig({ maxPlayers: 50, roundSeconds: 5, votesPerPlayer: 'x', category: 'nope' }), {
+    maxPlayers: 8, roundSeconds: 30, votesPerPlayer: 3, voteSeconds: 60, ...prompts,
   });
+});
+
+test('custom prompts: only the host sees the list, and starting needs at least one', () => {
+  const { room, players: [ann, bo], last } = setup({ category: 'custom' }, ['Ann', 'Bo']);
+  assert.throws(() => room.handle(ann.id, { type: 'start' }), /custom prompt/);
+  room.handle(ann.id, { type: 'config', config: { customPrompts: 'A pirate parrot\n\nA pirate parrot\n  A tiny   castle ' } });
+  assert.deepEqual(last(ann).config.customPrompts, ['A pirate parrot', 'A tiny castle']);
+  assert.deepEqual(last(bo).config.customPrompts, []);
+  assert.equal(last(bo).config.customCount, 2);
+  room.handle(ann.id, { type: 'start' });
+  assert.ok(['A pirate parrot', 'A tiny castle'].includes(last(bo).prompt));
+  room.dispose();
 });
 
 test('rooms cap at maxPlayers and dedupe names', () => {

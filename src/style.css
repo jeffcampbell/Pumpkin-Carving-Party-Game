@@ -52,7 +52,7 @@ button.small, .button.small { padding: 0.3em 0.8em; font-size: 0.85rem; }
 button.big { font-size: 1.15rem; padding: 0.8em 1.6em; }
 button:focus-visible, .button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
 
-input[type='text'], input[type='number'], select {
+input[type='text'], input[type='number'], select, textarea {
   font: inherit;
   color: var(--text);
   background: var(--bg-input);
@@ -133,6 +133,13 @@ input[type='range'] { width: 100%; accent-color: var(--orange); }
 .scenes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .scene { flex-direction: column; border-radius: 10px; padding: 0.45em 0.2em; font-size: 0.72rem; gap: 2px; line-height: 1.15; }
 .scene.active { border-color: var(--orange); background: #3a2510; }
+.categories { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.category, .panel-card .category { flex-direction: column; border-radius: 10px; padding: 0.45em 0.2em; margin: 0; font-size: 0.75rem; gap: 2px; color: var(--text); }
+.category.active { border-color: var(--orange); background: #3a2510; }
+.custom-box { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.custom-box[hidden] { display: none; }
+.custom-prompts { resize: vertical; min-height: 7em; line-height: 1.4; }
+.config-wrap { margin: 16px 0; max-width: 560px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .swatch {
   width: 32px; height: 32px; padding: 0; border-radius: 50%;

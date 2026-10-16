@@ -4,6 +4,7 @@ import { CarveMask, loadImage } from '../pumpkin/mask.js';
 import { PumpkinStage } from '../pumpkin/stage.js';
 import { GameClient, savedSession } from '../game/client.js';
 import * as api from '../api.js';
+import { CATEGORIES, DEFAULT_CATEGORY, CUSTOM_LIMITS, parseCustomPrompts } from '../../shared/prompt-categories.js';
 
 const NAME_KEY = 'pumpkin:name';
 const DEFAULTS = { roundSeconds: 120, votesPerPlayer: 3, maxPlayers: 8, voteSeconds: 60 };
@@ -81,6 +82,7 @@ function landing({ code, client }) {
   const votesInput = h('input', { type: 'number', min: 1, max: 10, value: DEFAULTS.votesPerPlayer });
   const playersSel = select([2, 3, 4, 5, 6, 7, 8].map((n) => [n, `${n} players`]), DEFAULTS.maxPlayers);
   const voteSel = select([[30, '30 seconds'], [60, '1 minute'], [90, '1½ minutes'], [120, '2 minutes']], DEFAULTS.voteSeconds);
+  const prompts = categoryPicker();
   const codeInput = h('input.code-input', { type: 'text', maxLength: 4, placeholder: 'ABCD', value: code ?? '', autocapitalize: 'characters' });
 
   const name = () => {
@@ -103,10 +105,12 @@ function landing({ code, client }) {
         votesPerPlayer: Number(votesInput.value),
         maxPlayers: Number(playersSel.value),
         voteSeconds: Number(voteSel.value),
+        ...prompts.value(),
       });
     },
   },
     h('h2', 'Host a party'),
+    prompts.el,
     field('Carving time', roundSel),
     field('Votes per player', votesInput),
     field('Room size', playersSel),
@@ -175,6 +179,7 @@ const VIEWS = {
     const controls = h('div.lobby-controls');
     const link = () => `${location.origin}/game/${state.code}`;
     let state;
+    let editor = null; // the host's settings form, kept across updates so typing isn't interrupted
     shell.append(h('div.page.lobby',
       h('div.room-code-box',
         h('span.muted', 'Room code'),
@@ -190,10 +195,21 @@ const VIEWS = {
         const isHost = s.hostId === s.you;
         shell.querySelector('.room-code').textContent = s.code;
         players.replaceChildren(playerChips(s), h('p.muted', `${s.players.length} of ${s.config.maxPlayers} spots filled`));
-        settings.replaceChildren(configSummary(s, isHost ? (config) => client.send({ type: 'config', config }) : null));
+        if (isHost) {
+          if (!editor) {
+            editor = configEditor((config) => client.send({ type: 'config', config }));
+            settings.replaceChildren(editor.el);
+          }
+          editor.set(s.config);
+        } else {
+          editor = null;
+          settings.replaceChildren(configSummary(s.config));
+        }
         const enough = s.players.filter((p) => p.connected).length >= 2;
+        const needsPrompts = s.config.category === 'custom' && s.config.customCount === 0;
         controls.replaceChildren(isHost
-          ? h('button.primary.big', { disabled: !enough, onclick: () => client.send({ type: 'start' }) }, enough ? 'Start carving!' : 'Waiting for another carver…')
+          ? h('button.primary.big', { disabled: !enough || needsPrompts, onclick: () => client.send({ type: 'start' }) },
+            !enough ? 'Waiting for another carver…' : needsPrompts ? 'Add some custom prompts first' : 'Start carving!')
           : h('p.muted', 'Waiting for the host to start…'));
       },
       destroy() {},
@@ -388,17 +404,94 @@ const VIEWS = {
   },
 };
 
-function configSummary(state, onChange) {
-  const c = state.config;
-  if (!onChange) {
-    return h('p.muted', `${c.roundSeconds / 60} min to carve · ${c.votesPerPlayer} votes each · ${c.voteSeconds}s to vote`);
-  }
+function categoryLabel(config) {
+  const { label, icon } = CATEGORIES[config.category] ?? CATEGORIES[DEFAULT_CATEGORY];
+  return config.category === 'custom' ? `${icon} ${label} (${config.customCount})` : `${icon} ${label}`;
+}
+
+function configSummary(c) {
+  return h('p.muted', `Prompts: ${categoryLabel(c)} · ${c.roundSeconds / 60} min to carve · ${c.votesPerPlayer} votes each · ${c.voteSeconds}s to vote`);
+}
+
+/** The host's lobby settings. `set` refreshes values from the server without clobbering a field being edited. */
+function configEditor(onChange) {
+  const prompts = categoryPicker({ onChange });
+  const inputs = {};
   const num = (key, label, min, max, step = 1) =>
-    h('label.field.inline', h('span', label), h('input', {
-      type: 'number', min, max, step, value: c[key],
+    h('label.field.inline', h('span', label), (inputs[key] = h('input', {
+      type: 'number', min, max, step,
       onchange: (e) => onChange({ [key]: Number(e.target.value) }),
-    }));
-  return h('div.config-edit', num('roundSeconds', 'Carving seconds', 30, 600, 15), num('votesPerPlayer', 'Votes each', 1, 10), num('voteSeconds', 'Voting seconds', 15, 300, 15), num('maxPlayers', 'Max players', 2, 8));
+    })));
+  const el = h('div.config-wrap', prompts.el, h('div.config-edit',
+    num('roundSeconds', 'Carving seconds', 30, 600, 15), num('votesPerPlayer', 'Votes each', 1, 10),
+    num('voteSeconds', 'Voting seconds', 15, 300, 15), num('maxPlayers', 'Max players', 2, 8)));
+  return {
+    el,
+    set(config) {
+      prompts.set(config);
+      for (const [key, input] of Object.entries(inputs)) if (document.activeElement !== input) input.value = config[key];
+    },
+  };
+}
+
+/**
+ * Category buttons plus, for "Custom", a textarea with one prompt per line.
+ * `onChange` (optional) gets `{ category, customPrompts }` as the host edits.
+ */
+function categoryPicker({ onChange } = {}) {
+  let category = DEFAULT_CATEGORY;
+  let typingTimer;
+  const count = h('span.muted.custom-count');
+  const textarea = h('textarea.custom-prompts', {
+    rows: 6,
+    placeholder: 'One prompt per line, for example:\nA lazy cat\nA happy dog',
+    oninput: () => {
+      render();
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(emit, 500);
+    },
+    onblur: () => {
+      if (typingTimer === undefined) return;
+      clearTimeout(typingTimer);
+      emit();
+    },
+  });
+  const buttons = Object.entries(CATEGORIES).map(([id, { label, icon }]) =>
+    h('button.category', { type: 'button', 'data-category': id, onclick: () => pick(id) }, h('span.tool-icon', icon), h('span', label)));
+  const customBox = h('div.custom-box', textarea, count);
+  const el = h('div.field.category-field', h('span', 'Prompts'), h('div.categories', buttons), customBox);
+
+  const value = () => ({ category, customPrompts: parseCustomPrompts(textarea.value) });
+
+  function emit() {
+    typingTimer = undefined;
+    onChange?.(value());
+  }
+
+  function render() {
+    for (const b of buttons) b.classList.toggle('active', b.dataset.category === category);
+    customBox.hidden = category !== 'custom';
+    const n = parseCustomPrompts(textarea.value).length;
+    count.textContent = n === CUSTOM_LIMITS.count ? `${n} prompts (that's the max)` : `${n} prompt${n === 1 ? '' : 's'}`;
+  }
+
+  function pick(id) {
+    category = id;
+    render();
+    if (id === 'custom') textarea.focus();
+    onChange?.(value());
+  }
+
+  render();
+  return {
+    el,
+    value,
+    set(config) {
+      category = config.category;
+      if (document.activeElement !== textarea && typingTimer === undefined) textarea.value = config.customPrompts.join('\n');
+      render();
+    },
+  };
 }
 
 /** A modal with one shared 3D stage for looking at any submitted pumpkin up close. */

@@ -62,20 +62,29 @@ keep working, but you'd have to remix to make changes.
 ### Hosting
 
 1. Go to **Party game**, enter your name, and set up the room:
+   - **Prompts:** pick a category. Every prompt is an adjective plus a subject,
+     like "A lazy cat" or "A grumpy chef", so it's easy to carve.
+     - 🎲 **Random** (default): a different category each round
+     - 🐶 **Animals**, 🧑‍🍳 **Jobs**, 👻 **Monsters**, 🍕 **Food**, 🚀 **Things**
+     - 😜 **Moods**: the mood is the whole point, as in "A jealous pumpkin"
+     - ✍️ **Custom**: type your own prompts, one per line (up to 100). Inside
+       jokes work well. Only the host can see the list, so it won't spoil
+       anything. A game can't start with an empty list.
    - **Carving time:** 30 seconds to 10 minutes (default 2 minutes)
    - **Votes per player:** 1 to 10 (default 3)
    - **Room size:** 2 to 8 players (default 8)
    - **Voting time:** 15 seconds to 5 minutes (default 60 seconds)
 2. Press **Create room** and share the 4-letter code, or press
    **Copy invite link**.
-3. You can still change the settings in the lobby. Once at least two people
+   Subjects and adjectives don't repeat within a game until a list runs out.
+3. You can still change the settings in the lobby, including the category. Once at least two people
    are in, press **Start carving!**
 
 The host is marked with a crown. If the host leaves, someone else takes over.
 
 ### Playing a round
 
-1. **Carve.** Everyone gets the same prompt, such as "A grumpy old wizard",
+1. **Carve.** Everyone gets the same prompt, such as "A sleepy owl",
    with a countdown. Press **I'm done** when you're happy. You can keep carving and
    **Resubmit** until time runs out. When the clock hits zero, whatever you have is
    submitted automatically. If everyone submits early, the round ends early.

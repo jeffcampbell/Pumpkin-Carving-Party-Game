@@ -157,6 +157,14 @@ lobby ─start─▶ carving ─timer─▶ collecting (5 s) ─▶ voting ─�
                                                      └── everyone locked in ──▶ results
 ```
 
+### Prompts
+
+`server/game/prompts.js` builds each prompt from an adjective and a subject in
+the room's category, for example "A lazy cat". It tracks used words per room,
+so subjects and adjectives don't repeat until a list runs out. `random` picks a
+category each round. `custom` draws from the host's list in the same way,
+without repeats.
+
 `collecting` is a grace period. Clients see the timer hit zero and auto-submit
 whatever they have.
 
@@ -166,10 +174,10 @@ The first message on a socket must be `create` or `join`.
 
 | Message | Who | Notes |
 |---------|-----|-------|
-| `{ type: 'create', name, config }` | anyone | `config`: `{ roundSeconds, votesPerPlayer, maxPlayers, voteSeconds }`. Values are clamped to the allowed ranges. |
+| `{ type: 'create', name, config }` | anyone | `config`: `{ roundSeconds, votesPerPlayer, maxPlayers, voteSeconds, category, customPrompts }`. Numbers are clamped to the allowed ranges. `category` is an ID from `shared/prompt-categories.js` and defaults to `random`. `customPrompts` is an array or newline-separated string, which is trimmed and de-duplicated, up to 100 prompts of 60 characters each. |
 | `{ type: 'join', code, name, token? }` | anyone | A `token` from an earlier `welcome` resumes the same seat. |
 | `{ type: 'config', config }` | host | Lobby only. |
-| `{ type: 'start' }` | host | From the lobby or results. Needs 2 or more connected players. |
+| `{ type: 'start' }` | host | From the lobby or results. Needs 2 or more connected players, and at least one prompt if the category is `custom`. |
 | `{ type: 'submit', pumpkin }` | player | `pumpkin` has the same shape as the REST body. Can be resent until submissions close. |
 | `{ type: 'vote', entryIds }` | player | Replaces your votes. Repeats are allowed, own entry is not, and there are at most `votesPerPlayer`. |
 | `{ type: 'doneVoting' }` | player | Locks in your votes. |
@@ -181,7 +189,7 @@ The first message on a socket must be `create` or `join`.
 | Message | Notes |
 |---------|-------|
 | `welcome` | `{ code, playerId, token }`. The client keeps the token in `sessionStorage` for resuming. |
-| `state` | Sent on every change: `phase`, `round`, `prompt`, `config`, `hostId`, `you`, `remainingMs`, `players[]` (with `submitted` and `doneVoting` flags), `myVotes`, and `results` (results phase only). |
+| `state` | Sent on every change: `phase`, `round`, `prompt`, `config` (`customPrompts` is filled in only for the host; everyone gets `customCount`), `hostId`, `you`, `remainingMs`, `players[]` (with `submitted` and `doneVoting` flags), `myVotes`, and `results` (results phase only). |
 | `gallery` | Once per voting phase: `{ round, entries: [{ entryId, mine, thumb }] }`. Entries are shuffled and anonymous. |
 | `mask` | Reply to `getMask`: `{ entryId, mask, candleColor, skinColor, scene }`. |
 | `error` | `{ message }`, shown to the player as a toast. |
@@ -198,3 +206,4 @@ ping/pong heartbeat drops dead sockets.
 - `api.test.js`: REST endpoints and share-page tags against a real server, plus creating and joining a room over the WebSocket.
 - `islands.test.js`: loose-piece detection, including seam wrap and the poles.
 - `etch.test.js`: etch level stepping and break-through.
+- `prompts.test.js`: prompt generation, repeats, categories and custom list cleanup.
