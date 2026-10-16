@@ -77,14 +77,17 @@ src/
   pages/           editor (/, /edit/:id), viewer (/p/:id), /mine, /game
   game/client.js   WebSocket client with automatic reconnect
 db/schema.sql      table definition (applied automatically)
+railway.json       Railway build and deploy settings
+.github/workflows/ keep-awake ping for the free Supabase project
 test/              node:test suites
 docs/              documentation and screenshots
 ```
 
 ## Deploying
 
-In short: create a Supabase project and copy its **Session pooler** connection
-string, then create a Railway service from this repo with `DATABASE_URL` set and
-the health check pointed at `/healthz`. Railway runs `npm install`,
-`npm run build` and `npm start`. See [docs/deploying.md](docs/deploying.md) for
-details and gotchas.
+It runs on Railway (app) and Supabase (database) for about $5 a month.
+[`railway.json`](railway.json) holds the deploy settings: build, health check
+at `/healthz`, app sleeping when idle, and resource caps. A GitHub Action
+([`keep-awake.yml`](.github/workflows/keep-awake.yml)) pings the app every 3
+days so the free Supabase project isn't paused. See
+[docs/deploying.md](docs/deploying.md) for the full setup.
