@@ -80,6 +80,7 @@ To set it up:
 | `DATABASE_URL` | yes | the Supabase session pooler string |
 | `PUBLIC_URL` | no | the public origin. Used for absolute URLs in link previews. If it isn't set, the request's host is used. |
 | `PORT` | no | Railway sets this for you |
+| `STATS_SALT` | no | secret for anonymous visitor hashes on `/stats`. Defaults to `DATABASE_URL`, so changing the database URL midday may count some visitors twice that day. |
 
 Don't set `NODE_ENV=production`. It makes `npm install` skip devDependencies,
 and Vite and Three.js are needed for the build. The server doesn't use it.

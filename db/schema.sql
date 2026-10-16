@@ -20,3 +20,22 @@ alter table pumpkins add column if not exists scene text not null default 'studi
 -- should be readable through Supabase's public REST API. RLS with no policies
 -- blocks the anon/authenticated roles entirely.
 alter table pumpkins enable row level security;
+
+-- Stats for /stats. Daily counters (visitors, rounds played, votes, ...); totals are sums.
+create table if not exists daily_stats (
+  day   date   not null,
+  name  text   not null,
+  value bigint not null default 0,
+  primary key (day, name)
+);
+
+-- Today's visitors as salted one-way hashes, only so each counts once a day.
+-- Rows older than a couple of days are deleted.
+create table if not exists visitor_days (
+  day     date not null,
+  visitor text not null,
+  primary key (day, visitor)
+);
+
+alter table daily_stats enable row level security;
+alter table visitor_days enable row level security;

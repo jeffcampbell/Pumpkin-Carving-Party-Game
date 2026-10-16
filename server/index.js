@@ -8,6 +8,7 @@ import express from 'express';
 import { createStore } from './store.js';
 import { pumpkinRoutes } from './pumpkins.js';
 import { attachGameServer } from './game/socket.js';
+import { Stats } from './stats.js';
 
 const DEV = process.argv.includes('--dev');
 const PORT = Number(process.env.PORT) || 3000;
@@ -15,6 +16,7 @@ const root = new URL('..', import.meta.url).pathname;
 const dist = new URL('../dist/', import.meta.url).pathname;
 
 const store = await createStore();
+const stats = new Stats(store);
 const app = express();
 const server = http.createServer(app);
 
@@ -32,9 +34,18 @@ app.get('/healthz', async (req, res) => {
 
 app.use('/api', express.json({ limit: '3mb' }));
 app.use('/api/pumpkins', pumpkinRoutes(store));
+app.get('/api/stats', async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'public, max-age=15');
+    res.json(await stats.summary());
+  } catch (err) {
+    next(err);
+  }
+});
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
-attachGameServer(server);
+const game = attachGameServer(server, { track: stats.track });
+stats.live = () => game.rooms.live();
 
 // ---- client app -----------------------------------------------------------
 
@@ -64,6 +75,7 @@ if (DEV) {
 app.use(async (req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
   try {
+    stats.visit(req);
     let html = await renderIndex(req.originalUrl);
     const match = req.path.match(/^\/p\/([A-Za-z0-9_-]{8,16})$/);
     const meta = match && (await store.getMeta(match[1]));

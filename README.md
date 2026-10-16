@@ -26,6 +26,9 @@ The app calls itself **Pumpkin Patch** in its header.
   the host picks (animals, jobs, moods, monsters, food, things, random, or the
   host's own custom list), configurable carving time (default 2 minutes) and
   votes per player (default 3), anonymous voting, results, and rematches.
+- **Stats page:** `/stats` (the 👻 in the menu) shows pumpkins carved, visitors,
+  parties and votes, with a 30-night candle chart, favorite scenes and candle
+  colors. Visitors are counted without cookies.
 
 ![The six scenes](docs/images/scenes.jpg)
 
@@ -64,6 +67,7 @@ One small Node process does everything, which keeps hosting cheap:
 ```
 server/
   index.js         HTTP server, link-preview tags for /p/:id, Vite middleware in dev
+  stats.js         counters and visitor counting for /stats
   pumpkins.js      REST API for saved pumpkins
   store.js         Postgres store, or in-memory when DATABASE_URL is unset
   validate.js      payload checks shared by the API and the game
@@ -74,7 +78,7 @@ shared/            scene and prompt-category lists used by client and server
 src/
   pumpkin/         geometry, shaders, carving mask, tools, falling pieces, scenes
   ui/workbench.js  carving UI shared by solo mode and the game
-  pages/           editor (/, /edit/:id), viewer (/p/:id), /mine, /game
+  pages/           editor (/, /edit/:id), viewer (/p/:id), /mine, /game, /stats
   game/client.js   WebSocket client with automatic reconnect
 db/schema.sql      table definition (applied automatically)
 railway.json       Railway build and deploy settings

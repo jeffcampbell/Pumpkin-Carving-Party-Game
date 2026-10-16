@@ -46,8 +46,9 @@ function cleanName(name) {
 }
 
 export class Room {
-  constructor(code, config, { now = Date.now } = {}) {
+  constructor(code, config, { now = Date.now, track = () => {} } = {}) {
     this.code = code;
+    this.track = track; // (statName, count) for /stats
     this.config = normalizeConfig(config);
     this.now = now;
     this.phase = 'lobby';
@@ -84,6 +85,7 @@ export class Room {
       doneVoting: false,
     };
     this.players.set(player.id, player);
+    this.track('players_joined', 1);
     if (!this.hostId) this.hostId = player.id;
     this.emptySince = null;
     this.broadcast();
@@ -174,6 +176,7 @@ export class Room {
     this.entries = [];
     this.results = null;
     this.prompt = pickPrompt(this.config, this.usedPrompts);
+    this.track('rounds_played', 1);
     this.setPhase('carving', this.config.roundSeconds * 1000, () => this.endCarving());
   }
 
@@ -201,6 +204,7 @@ export class Room {
     if (this.phase !== 'carving' && this.phase !== 'collecting') return;
     const submitted = [...this.players.values()].filter((p) => p.submission);
     this.entries = shuffle(submitted.map((p) => ({ entryId: p.submission.entryId, playerId: p.id })));
+    this.track('game_pumpkins', this.entries.length);
     if (this.entries.length === 0) return this.showResults();
     this.setPhase('voting', this.config.voteSeconds * 1000, () => this.showResults());
     for (const p of this.connectedPlayers()) this.sendGallery(p);
@@ -248,6 +252,7 @@ export class Room {
       row.rank = i > 0 && row.votes === rows[i - 1].votes ? rows[i - 1].rank : i + 1;
     });
     this.results = rows;
+    this.track('votes_cast', rows.reduce((sum, row) => sum + row.votes, 0));
     this.setPhase('results', null, null);
   }
 
@@ -363,9 +368,10 @@ function shuffle(arr) {
 }
 
 export class RoomManager {
-  constructor({ now = Date.now } = {}) {
+  constructor({ now = Date.now, track = () => {} } = {}) {
     this.rooms = new Map();
     this.now = now;
+    this.track = track;
   }
 
   create(config) {
@@ -375,9 +381,21 @@ export class RoomManager {
     do {
       code = Array.from(crypto.randomBytes(4), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
     } while (this.rooms.has(code));
-    const room = new Room(code, config, { now: this.now });
+    const room = new Room(code, config, { now: this.now, track: this.track });
     this.rooms.set(code, room);
+    this.track('rooms_created', 1);
     return room;
+  }
+
+  /** What's happening right now, for /stats. */
+  live() {
+    let players = 0;
+    let carving = 0;
+    for (const room of this.rooms.values()) {
+      players += room.connectedPlayers().length;
+      if (room.phase === 'carving' || room.phase === 'collecting') carving += 1;
+    }
+    return { rooms: this.rooms.size, players, carving };
   }
 
   get(code) {

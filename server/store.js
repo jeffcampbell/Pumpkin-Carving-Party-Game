@@ -82,11 +82,57 @@ class PgStore {
   async ping() {
     await this.pool.query('select 1');
   }
+
+  // ---- stats --------------------------------------------------------------
+
+  async bumpStat(day, name, by) {
+    await this.pool.query(
+      `insert into daily_stats (day, name, value) values ($1, $2, $3)
+       on conflict (day, name) do update set value = daily_stats.value + excluded.value`,
+      [day, name, by],
+    );
+  }
+
+  /** Records a visitor for the day; true the first time they're seen that day. */
+  async addVisitor(day, visitor) {
+    const { rowCount } = await this.pool.query(
+      'insert into visitor_days (day, visitor) values ($1, $2) on conflict do nothing',
+      [day, visitor],
+    );
+    return rowCount === 1;
+  }
+
+  async forgetVisitorsBefore(day) {
+    await this.pool.query('delete from visitor_days where day < $1', [day]);
+  }
+
+  async statSummary(sinceDay) {
+    const [totals, daily, pumpkins, perDay, scenes, candles] = await Promise.all([
+      this.pool.query('select name, sum(value)::bigint as value, min(day)::text as first from daily_stats group by name'),
+      this.pool.query('select day::text, name, value from daily_stats where day >= $1', [sinceDay]),
+      this.pool.query('select count(*)::int as count, min(created_at) as first, max(created_at) as last from pumpkins'),
+      this.pool.query(
+        `select (created_at at time zone 'utc')::date::text as day, count(*)::int as count
+         from pumpkins where created_at >= $1 group by 1`,
+        [sinceDay],
+      ),
+      this.pool.query('select scene as key, count(*)::int as count from pumpkins group by 1 order by 2 desc'),
+      this.pool.query('select lower(candle_color) as key, count(*)::int as count from pumpkins group by 1 order by 2 desc limit 6'),
+    ]);
+    return {
+      totals: Object.fromEntries(totals.rows.map((r) => [r.name, Number(r.value)])),
+      firstDay: totals.rows.reduce((min, r) => (!min || r.first < min ? r.first : min), null),
+      daily: daily.rows.map((r) => ({ day: r.day, name: r.name, value: Number(r.value) })),
+      pumpkins: { ...pumpkins.rows[0], perDay: perDay.rows, scenes: scenes.rows, candles: candles.rows },
+    };
+  }
 }
 
 class MemoryStore {
   constructor() {
     this.rows = new Map();
+    this.stats = new Map(); // "day|name" -> count
+    this.visitors = new Set(); // "day|visitor"
   }
 
   async create({ id, title, mask, thumb, candleColor, skinColor, scene, editTokenHash }) {
@@ -118,6 +164,52 @@ class MemoryStore {
   }
 
   async ping() {}
+
+  async bumpStat(day, name, by) {
+    const key = `${day}|${name}`;
+    this.stats.set(key, (this.stats.get(key) ?? 0) + by);
+  }
+
+  async addVisitor(day, visitor) {
+    const key = `${day}|${visitor}`;
+    if (this.visitors.has(key)) return false;
+    this.visitors.add(key);
+    return true;
+  }
+
+  async forgetVisitorsBefore(day) {
+    for (const key of this.visitors) if (key.split('|')[0] < day) this.visitors.delete(key);
+  }
+
+  async statSummary(sinceDay) {
+    const totals = {};
+    const daily = [];
+    let firstDay = null;
+    for (const [key, value] of this.stats) {
+      const [day, name] = key.split('|');
+      totals[name] = (totals[name] ?? 0) + value;
+      if (!firstDay || day < firstDay) firstDay = day;
+      if (day >= sinceDay) daily.push({ day, name, value });
+    }
+    const rows = [...this.rows.values()];
+    const tally = (keyOf) => [...rows.reduce((m, r) => m.set(keyOf(r), (m.get(keyOf(r)) ?? 0) + 1), new Map())]
+      .map(([key, count]) => ({ key, count }))
+      .sort((a, b) => b.count - a.count);
+    const times = rows.map((r) => r.createdAt.getTime());
+    return {
+      totals,
+      firstDay,
+      daily,
+      pumpkins: {
+        count: rows.length,
+        first: times.length ? new Date(Math.min(...times)) : null,
+        last: times.length ? new Date(Math.max(...times)) : null,
+        perDay: tally((r) => r.createdAt.toISOString().slice(0, 10)).filter((d) => d.key >= sinceDay).map(({ key, count }) => ({ day: key, count })),
+        scenes: tally((r) => r.scene),
+        candles: tally((r) => r.candleColor.toLowerCase()).slice(0, 6),
+      },
+    };
+  }
 
   meta({ id, title, candleColor, skinColor, scene, createdAt, updatedAt }) {
     return { id, title, candleColor, skinColor, scene, createdAt, updatedAt };

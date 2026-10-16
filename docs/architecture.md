@@ -125,6 +125,13 @@ One Postgres table, defined in `db/schema.sql` and applied idempotently on boot:
 | `edit_token_hash` | SHA-256 of the creator's edit token |
 | `created_at`, `updated_at` | timestamps |
 
+Two more tables support the stats page:
+
+| Table | Contents |
+|-------|----------|
+| `daily_stats` | `(day, name, value)` counters: `visitors`, `rooms_created`, `players_joined`, `rounds_played`, `game_pumpkins`, `votes_cast`. Totals are sums over all days. |
+| `visitor_days` | `(day, visitor)` hashes used only to count each visitor once a day. Rows from before yesterday are deleted. |
+
 Row-level security is enabled with no policies. The app connects as the
 database owner, but Supabase's public REST API can't read the table.
 
@@ -139,6 +146,7 @@ All bodies are JSON. Errors are `{ "error": "message" }`.
 | `GET /api/pumpkins/:id` | Metadata: `{ id, title, candleColor, skinColor, scene, createdAt, updatedAt }`. |
 | `GET /api/pumpkins/:id/mask.png` | Mask image. With `?v=<updatedAt>` it is cached as immutable. |
 | `GET /api/pumpkins/:id/thumb.jpg` | Thumbnail, cached the same way. |
+| `GET /api/stats` | Site stats: `totals`, 30 `nights` of per-day counts, `scenes` and `candles` breakdowns, `lastCarvedAt`, `since` and `live` (rooms, connected players, rooms carving now). Cached for 30 seconds, except `live`. |
 | `GET /healthz` | `200` when the server and database are reachable. |
 
 Limits: request bodies up to 3 MB, masks up to 1.5 MB, thumbnails up to 300 KB.
@@ -198,6 +206,27 @@ Authors are revealed only in `results`. Rooms are removed 5 minutes after the
 last player disconnects, and a server holds at most 500 rooms. A 25-second
 ping/pong heartbeat drops dead sockets.
 
+## Stats
+
+`server/stats.js` feeds the `/stats` page.
+
+- **Visitors** are counted when the server serves a page. A visitor is
+  `HMAC(secret, date | IP | user agent)`, cut to 22 characters. That's enough
+  to count each person once a day, but a hash can't be reversed or matched
+  across days, and no cookies or local storage are involved. The secret is
+  `STATS_SALT` if set, otherwise `DATABASE_URL`. User agents that look like
+  crawlers, link unfurlers, uptime checks, scripts or headless browsers are
+  skipped.
+- **Game numbers** come from `RoomManager`'s `track` callback: a room created,
+  a player joined (not counting reconnects), a round started, entries when
+  voting opens, and votes when results are shown.
+- **Pumpkin numbers** (total, per night, scenes, candle colors) are queried
+  from the `pumpkins` table. They include pumpkins saved before stats existed.
+  The "Pumpkins" chart adds pumpkins entered in games.
+
+Stat writes are fire-and-forget. A database hiccup is logged and never breaks
+a page load or a game. Days are in UTC.
+
 ## Tests
 
 `npm test` runs `node:test` suites in `test/`:
@@ -207,3 +236,4 @@ ping/pong heartbeat drops dead sockets.
 - `islands.test.js`: loose-piece detection, including seam wrap and the poles.
 - `etch.test.js`: etch level stepping and break-through.
 - `prompts.test.js`: prompt generation, repeats, categories and custom list cleanup.
+- `stats.test.js`: visitor de-duplication and bot filtering, the summary shape, and game events.

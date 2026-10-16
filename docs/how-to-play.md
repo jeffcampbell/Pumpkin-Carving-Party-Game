@@ -57,6 +57,12 @@ keep working, but you'd have to remix to make changes.
 
 **New pumpkin** clears the board and starts over.
 
+## Stats
+
+Tap 👻 in the menu (or go to `/stats`) to see how many pumpkins have been
+carved, how many people have visited, parties and votes, the last 30 nights,
+favorite scenes and candle colors, and how many people are playing right now.
+
 ## Party game
 
 ### Hosting

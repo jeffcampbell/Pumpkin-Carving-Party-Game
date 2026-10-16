@@ -7,8 +7,8 @@ import { GameError, RoomManager } from './rooms.js';
 
 const HEARTBEAT_MS = 25_000;
 
-export function attachGameServer(httpServer, { path = '/ws' } = {}) {
-  const rooms = new RoomManager();
+export function attachGameServer(httpServer, { path = '/ws', track } = {}) {
+  const rooms = new RoomManager({ track });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 3 * 1024 * 1024 });
 
   httpServer.on('upgrade', (req, socket, head) => {

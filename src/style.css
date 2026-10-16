@@ -249,3 +249,115 @@ input[type='range'] { width: 100%; accent-color: var(--orange); }
   .result-votes { grid-column: 3; }
   .room-code { font-size: 2.4rem; }
 }
+
+/* ---- /stats: the patch after dark ---------------------------------------- */
+.stats-page {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0b0714 0%, #150d22 55%, #1a1020 100%);
+}
+.moon {
+  position: absolute; top: 28px; right: max(24px, calc(50% - 520px));
+  width: 84px; height: 84px; border-radius: 50%; z-index: 0; pointer-events: none;
+  background: radial-gradient(circle at 36% 34%, #fffbe9 0%, #f3e6bd 45%, #d9c48f 100%);
+  box-shadow: 0 0 40px 8px rgba(255, 240, 200, 0.28), 0 0 120px 40px rgba(255, 240, 200, 0.08);
+}
+.moon::before, .moon::after { content: ''; position: absolute; border-radius: 50%; background: rgba(170, 150, 100, 0.35); }
+.moon::before { width: 18px; height: 18px; top: 22px; left: 46px; }
+.moon::after { width: 11px; height: 11px; top: 50px; left: 26px; }
+.stats-content { position: relative; z-index: 1; }
+.spooky-title {
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  letter-spacing: 0.02em;
+  color: #ffd9a8;
+  text-shadow: 0 0 18px rgba(255, 138, 42, 0.55), 0 0 2px #ff8a2a;
+  animation: title-flicker 7s infinite;
+  margin-top: 0.3em;
+}
+.live { display: flex; align-items: center; gap: 8px; color: var(--text); margin: 0 0 28px; }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: #7dffb0; box-shadow: 0 0 10px #7dffb0; animation: pulse 1.6s infinite; flex: none; }
+
+.graveyard { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 18px 14px; margin-bottom: 28px; }
+.tombstone {
+  position: relative;
+  padding: 40px 12px 18px;
+  text-align: center;
+  border-radius: 50% 50% 10px 10px / 64px 64px 10px 10px;
+  background: linear-gradient(180deg, #4a4458 0%, #2f2a3a 70%, #241f2d 100%);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.08), inset 0 -8px 16px rgba(0, 0, 0, 0.4), 0 10px 0 -4px #1a2a1a, 0 14px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid #5a536a;
+}
+.tombstone::before { content: 'R.I.P.'; position: absolute; top: 18px; left: 0; right: 0; font-size: 0.65rem; letter-spacing: 0.3em; color: #8d859c; }
+.stone-number { font-size: clamp(1.8rem, 5vw, 2.4rem); font-weight: 800; color: #ffb35c; text-shadow: 0 0 14px rgba(255, 138, 42, 0.45); font-variant-numeric: tabular-nums; }
+.stone-label { font-size: 0.8rem; color: #cfc6dc; margin-top: 4px; font-style: italic; }
+
+.stats-card { background: rgba(29, 20, 41, 0.82); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; backdrop-filter: blur(2px); }
+.card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.card-head h2 { margin: 0; }
+.chips { display: flex; gap: 6px; }
+.chip { padding: 0.3em 0.8em; font-size: 0.85rem; border-radius: 999px; }
+.chip.active { border-color: var(--orange); background: #3a2510; }
+.candle-chart svg { width: 100%; height: auto; display: block; margin-top: 10px; overflow: visible; }
+.chart-ground { stroke: #3a3048; }
+.chart-day { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+.candle .wax { fill: #3a3048; }
+.candle.lit .wax { fill: #efe2c6; }
+.candle .glow { fill: rgba(255, 170, 60, 0.22); filter: blur(4px); }
+.candle .flame { fill: #ffc861; transform-box: fill-box; transform-origin: 50% 100%; animation: flame 1.3s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -0.17s); }
+.candle:hover .wax { fill: #fff6e0; }
+.chart-note { margin: 8px 0 0; font-size: 0.9rem; }
+
+.stats-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 18px; }
+.haunts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.haunts li { display: grid; grid-template-columns: 9.5em 1fr 3em; align-items: center; gap: 10px; font-size: 0.9rem; }
+.haunt-bar { height: 10px; border-radius: 999px; background: #281c38; overflow: hidden; }
+.haunt-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6b4fa0, #b9a6e0); box-shadow: 0 0 10px rgba(185, 166, 224, 0.5); }
+.haunt-count { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.candle-colors { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; }
+.candle-color { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+.flame-dot { width: 26px; height: 34px; border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; background: radial-gradient(circle at 50% 70%, #fff 0 18%, var(--flame) 55%); box-shadow: 0 0 16px var(--flame), 0 0 34px var(--flame); animation: flame 1.6s ease-in-out infinite alternate; }
+.privacy { font-size: 0.8rem; text-align: center; margin-top: 20px; }
+
+.fog { position: absolute; inset: auto 0 0 0; height: 55%; pointer-events: none; z-index: 0; overflow: hidden; }
+.fog-layer {
+  position: absolute; inset: 0 -50% 0 -50%;
+  background:
+    radial-gradient(ellipse 30% 40% at 20% 80%, rgba(200, 190, 230, 0.10), transparent 70%),
+    radial-gradient(ellipse 25% 35% at 55% 90%, rgba(200, 190, 230, 0.08), transparent 70%),
+    radial-gradient(ellipse 35% 45% at 85% 85%, rgba(200, 190, 230, 0.09), transparent 70%);
+  animation: drift 40s linear infinite alternate;
+}
+.fog-layer.slow { animation-duration: 70s; animation-direction: alternate-reverse; opacity: 0.8; }
+.bats { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.bat { position: absolute; font-size: 22px; opacity: 0; filter: brightness(0.35) drop-shadow(0 0 3px rgba(0, 0, 0, 0.8)); animation: bat-fly 19s linear infinite; }
+.bat:nth-child(1) { top: 9%; animation-delay: 2s; }
+.bat:nth-child(2) { top: 22%; font-size: 16px; animation-delay: 9s; animation-duration: 24s; }
+.bat:nth-child(3) { top: 4%; font-size: 13px; animation-delay: 15s; animation-duration: 28s; }
+
+@keyframes flame { from { transform: scale(0.92, 1) rotate(-3deg); opacity: 0.85; } to { transform: scale(1.06, 1.12) rotate(3deg); opacity: 1; } }
+@keyframes title-flicker { 0%, 92%, 100% { opacity: 1; } 93% { opacity: 0.55; } 94% { opacity: 1; } 96% { opacity: 0.7; } }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@keyframes drift { to { transform: translateX(25%); } }
+@keyframes bat-fly {
+  0% { left: -40px; opacity: 0; transform: translateY(0); }
+  5% { opacity: 1; }
+  25% { transform: translateY(-18px); }
+  50% { transform: translateY(12px); }
+  75% { transform: translateY(-10px); }
+  95% { opacity: 1; }
+  100% { left: 105%; opacity: 0; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spooky-title, .live-dot, .candle .flame, .flame-dot, .fog-layer { animation: none; }
+  .bats { display: none; }
+}
+@media (max-width: 640px) {
+  .moon { top: 14px; right: 14px; width: 46px; height: 46px; }
+  .moon::before { width: 10px; height: 10px; top: 12px; left: 25px; }
+  .moon::after { width: 6px; height: 6px; top: 27px; left: 14px; }
+  .spooky-title { padding-right: 48px; }
+  .chart-day { font-size: 20px; }
+  .haunts li { grid-template-columns: 8.5em 1fr 2.5em; }
+  .graveyard { grid-template-columns: repeat(2, 1fr); }
+}
